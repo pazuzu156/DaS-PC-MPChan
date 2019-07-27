@@ -5,10 +5,6 @@ Imports System.Text.RegularExpressions
 Imports System.Net.Sockets
 Imports System.ComponentModel
 Imports System.Text
-Imports Microsoft.Win32
-Imports Microsoft.VisualBasic
-Imports Microsoft.VisualBasic.CompilerServices
-Imports System.Xml
 
 Public Class MainWindow
     'Timers
@@ -80,13 +76,11 @@ Public Class MainWindow
             End If
         End If
 
-
-
+        
+        
 
         txtTargetSteamID.SetPlaceholder(txtTargetSteamID.Text)
         txtTargetSteamID.Text = ""
-        txtBlockSteamID.SetPlaceholder(txtBlockSteamID.Text)
-        txtBlockSteamID.Text = ""
 
         updateUITimer.Interval = 200
         updateUITimer.Start()
@@ -108,14 +102,11 @@ Public Class MainWindow
         setupGridViews()
 
         'Create regkeys if they don't exist
-        'Stores steamid as key, current name as value
-        My.Computer.Registry.CurrentUser.CreateSubKey("Software\DSCM\BlockedNodes")
         My.Computer.Registry.CurrentUser.CreateSubKey("Software\DSCM\FavoriteNodes")
         My.Computer.Registry.CurrentUser.CreateSubKey("Software\DSCM\RecentNodes")
         My.Computer.Registry.CurrentUser.CreateSubKey("Software\DSCM\Options")
 
         loadFavoriteNodes()
-        loadBlockedNodes()
         loadRecentNodes()
         loadOptions()
         loadReadme()
@@ -173,19 +164,6 @@ Public Class MainWindow
             .Columns.Add("isOnline", "O")
             .Columns("isOnline").Width = 20
             .Columns("isOnline").ValueType = GetType(String)
-            .Font = New Font("Consolas", 10)
-            .AlternatingRowsDefaultCellStyle.BackColor = AlternateRowColor
-            .SelectionMode = DataGridViewSelectionMode.FullRowSelect
-        End With
-
-        'Using this as a gui element and the block array. Stores (steam name, steam id)
-        With dgvBlockedNodes
-            .Columns.Add("name", "Name")
-            .Columns("name").Width = 180
-            .Columns("name").ValueType = GetType(String)
-            .Columns.Add("steamId", "Steam ID")
-            .Columns("steamId").Width = 145
-            .Columns("steamId").ValueType = GetType(String)
             .Font = New Font("Consolas", 10)
             .AlternatingRowsDefaultCellStyle.BackColor = AlternateRowColor
             .SelectionMode = DataGridViewSelectionMode.FullRowSelect
@@ -278,22 +256,6 @@ Public Class MainWindow
         For Each id As String In key.GetValueNames()
             dgvFavoriteNodes.Rows.Add(key.GetValue(id), id)
         Next
-    End Sub
-
-    'Read in blocked node list from register
-    Private Sub loadBlockedNodes()
-        Dim key As Microsoft.Win32.RegistryKey
-        key = My.Computer.Registry.CurrentUser.OpenSubKey("Software\DSCM\BlockedNodes", True)
-
-        If key IsNot Nothing Then
-            For Each id As String In key.GetValueNames()
-                dgvBlockedNodes.Rows.Add(key.GetValue(id), id)
-            Next
-        End If
-
-        If dsProcess IsNot Nothing Then
-            dsProcess.Sync_MemoryBlockList(dgvBlockedNodes.Rows)
-        End If
     End Sub
     Private Sub loadRecentNodes()
         Dim key As Microsoft.Win32.RegistryKey
@@ -449,10 +411,6 @@ Public Class MainWindow
         Next
         For Each n In dsProcess.ConnectedNodes.Values
             blackSet.Add(n.SteamId)
-        Next
-        'Don't attempt connections with blocked nodes
-        For Each n In dgvBlockedNodes.Rows
-            blackSet.Add(n.Cells("steamId").Value)
         Next
 
         Dim candidates As New List(Of DSNode)
@@ -820,13 +778,13 @@ Public Class MainWindow
         'Disabled temporarily due to being non-functional
         Dim byt() As Byte
         byt = Encoding.Unicode.GetBytes(dsProcess.SelfSteamName)
-
+        
         If byt.Length > &H1d Then ReDim Preserve byt(&H1d)
-
+        
         Dim tmpStr As String
         tmpStr = Encoding.Unicode.GetString(byt)
         tmpStr = tmpStr.Replace("#", "")
-
+        
         If byt(0) = 0 Then tmpStr = "Invalid Name"
 
         dsProcess.SelfSteamName = tmpStr
@@ -942,39 +900,12 @@ Public Class MainWindow
             tabs.Visible = True
             btnAddFavorite.Visible = True
             btnRemFavorite.Visible = True
-            btnRemBlock.Visible = True
-            btnAddBlock.Visible = True
-            Me.txtBlockSteamID.Location = New System.Drawing.Point(291, 64)
-            Me.txtBlockSteamID.Size = New System.Drawing.Size(243, 20)
-
-            Me.blockUserId.Location = New System.Drawing.Point(291, 85)
-            Me.blockUserId.Size = New System.Drawing.Size(243, 23)
-
-            Me.txtTargetSteamID.Location = New System.Drawing.Point(534, 64)
-            Me.txtTargetSteamID.Size = New System.Drawing.Size(243, 20)
-
-            Me.btnAttemptId.Location = New System.Drawing.Point(534, 85)
-            Me.btnAttemptId.Size = New System.Drawing.Size(243, 23)
-
         Else
             Me.Width = 500
             Me.Height = 190
             tabs.Visible = False
             btnAddFavorite.Visible = False
             btnRemFavorite.Visible = False
-            btnRemBlock.Visible = False
-            btnAddBlock.Visible = False
-            Me.txtBlockSteamID.Location = New System.Drawing.Point(10, 74)
-            Me.txtBlockSteamID.Size = New System.Drawing.Size(230, 20)
-
-            Me.blockUserId.Location = New System.Drawing.Point(10, 95)
-            Me.blockUserId.Size = New System.Drawing.Size(230, 23)
-
-            Me.txtTargetSteamID.Location = New System.Drawing.Point(250, 74)
-            Me.txtTargetSteamID.Size = New System.Drawing.Size(230, 20)
-
-            Me.btnAttemptId.Location = New System.Drawing.Point(250, 95)
-            Me.btnAttemptId.Size = New System.Drawing.Size(230, 23)
         End If
     End Sub
     Private Sub nmbMaxNodes_ValueChanged(sender As Object, e As EventArgs) Handles nmbMaxNodes.ValueChanged
@@ -1003,14 +934,12 @@ Public Class MainWindow
             End While
         End If
     End Sub
-
-    'Check if text proved in textbox matches a valid steam id. Return it as string if so
-    Function verifySteamId(inputBox As TextBox) As String
-        If String.IsNullOrWhiteSpace(inputBox.Text) Then
+    Private Sub btnAttemptId_MouseClick(sender As Object, e As EventArgs) Handles btnAttemptId.Click
+        If String.IsNullOrWhiteSpace(txtTargetSteamID.Text) Then
             MsgBox("No target for connection given", MsgBoxStyle.Critical)
-            Return Nothing
+            Return
         End If
-        Dim idString As String = inputBox.Text.Replace(" ", "")
+        Dim idString As String = txtTargetSteamID.Text.Replace(" ", "")
 
         If Not Regex.IsMatch(idString, "^\d+$") Then
             Dim m As Match = Regex.Match(idString, "https?://steamcommunity.com/profiles/(7\d+)")
@@ -1049,54 +978,16 @@ Public Class MainWindow
             End Try
         End If
         If Not validTarget Then
-            MsgBox("The given target could not be converted to a Steam64 ID:" & vbCrLf & inputBox.Text, MsgBoxStyle.Critical)
-            Return Nothing
+            MsgBox("The given target could not be converted to a Steam64 ID:" & vbCrLf & txtTargetSteamID.Text, MsgBoxStyle.Critical)
+            Return
         End If
         If dsProcess Is Nothing Then
             MsgBox("You can only connect to other players while Dark Souls is running.", MsgBoxStyle.Critical)
-            Return Nothing
-        End If
-
-        Return idString
-    End Function
-
-    Private Sub btnAttemptId_MouseClick(sender As Object, e As EventArgs) Handles btnAttemptId.Click
-        Dim idString As String = verifySteamId(txtTargetSteamID)
-        If idString IsNot Nothing Then
-            manualConnections.Add(idString)
-            connectToSteamId(idString) 
-        End If
-    End Sub
-
-    'Blocked the given user id if possible
-    'Adds to registery and the block list
-    Private Sub blockUser(idString As String)
-        If dgvBlockedNodes.Rows.Count < 5 Then
-            Dim BlockRegistryKey As RegistryKey = Registry.CurrentUser.OpenSubKey("Software\DSCM\BlockedNodes", True)
-            Dim str2 As String = Conversions.ToString(Convert.ToInt64(idString, 16))
-            Dim xmlDocument As XmlDocument = New XmlDocument()
-            xmlDocument.Load("http://steamcommunity.com/profiles/" + str2 + "?xml=1")
-            Dim innerText As String = xmlDocument.SelectSingleNode("/profile/steamID").InnerText
-            BlockRegistryKey.SetValue(CType(idString, Object), innerText)
-            dgvBlockedNodes.Rows.Add(CType(innerText, Object), CType(idString, Object))
-
-            If dsProcess IsNot Nothing Then
-                dsProcess.DisconnectSteamId(idString) 'be polite and nicely request a disconnection
-                dsProcess.Sync_MemoryBlockList(dgvBlockedNodes.Rows) 'before completely dropping all communications
-            End If
-        Else
-            MsgBox("You can only simulatiously block 5 players. Please remove someone from your block list.", MsgBoxStyle.Critical)
-        End If
-    End Sub
-
-    Private Sub blockUserId_MouseClick(sender As Object, e As EventArgs) Handles blockUserId.Click
-        Dim idString As String = verifySteamId(txtBlockSteamID)
-        If idString.Equals("") Then
             Return
         End If
-        blockUser(idString)
+        manualConnections.Add(idString)
+        connectToSteamId(idString)
     End Sub
-
     Private Function getSelectedNode() As Tuple(Of String, String)
         Dim currentGrid As DataGridView = Nothing
         If tabs.SelectedTab Is tabActive Then
@@ -1105,21 +996,15 @@ Public Class MainWindow
             currentGrid = dgvRecentNodes
         ElseIf tabs.SelectedTab Is tabFavorites Then
             currentGrid = dgvFavoriteNodes
-        ElseIf tabs.SelectedTab Is tabBlock Then
-            currentGrid = dgvBlockedNodes
         ElseIf tabs.SelectedTab Is tabDSCMNet Then
             currentGrid = dgvDSCMNet
         Else
             Return Nothing
         End If
 
-        If currentGrid.CurrentRow IsNot Nothing Then
-            Dim name As String = currentGrid.CurrentRow.Cells("name").Value
-            Dim steamId As String = currentGrid.CurrentRow.Cells("steamId").Value
-            Return Tuple.Create(steamId, name)
-        End If
-
-        Return Nothing
+        Dim name As String = currentGrid.CurrentRow.Cells("name").Value
+        Dim steamId As String = currentGrid.CurrentRow.Cells("steamId").Value
+        Return Tuple.Create(steamId, name)
     End Function
     Private Sub dgvNodes_doubleclick(sender As DataGridView, e As EventArgs) Handles dgvFavoriteNodes.DoubleClick,
         dgvRecentNodes.DoubleClick, dgvDSCMNet.DoubleClick
@@ -1161,46 +1046,6 @@ Public Class MainWindow
         For i = dgvFavoriteNodes.Rows.Count - 1 To 0 Step -1
             If dgvFavoriteNodes.Rows(i).Cells("steamId").Value = steamId Then
                 dgvFavoriteNodes.Rows.Remove(dgvFavoriteNodes.Rows(i))
-            End If
-        Next
-    End Sub
-
-    'Button to block selected user
-    Private Sub btnAddBlock_Click(sender As Object, e As EventArgs) Handles btnAddBlock.Click
-        Dim selectedNode = getSelectedNode()
-        If selectedNode Is Nothing Then
-            MsgBox("No selection detected.")
-            Return
-        End If
-
-        Dim steamId As String = selectedNode.Item1
-
-        blockUser(steamId)
-    End Sub
-
-    'Button to unblock selected user
-    Private Sub btnRemBlock_Click(sender As Object, e As EventArgs) Handles btnRemBlock.Click
-        Dim key As Microsoft.Win32.RegistryKey
-        key = My.Computer.Registry.CurrentUser.OpenSubKey("Software\DSCM\BlockedNodes", True)
-
-        Dim selectedNode = getSelectedNode()
-        If selectedNode Is Nothing Then
-            MsgBox("No selection detected.")
-            Return
-        End If
-
-        Dim steamId As String = selectedNode.Item1
-
-        If Not key.GetValue(steamId) Is Nothing Then
-            key.DeleteValue(steamId)
-        End If
-
-        For i = dgvBlockedNodes.Rows.Count - 1 To 0 Step -1
-            If dgvBlockedNodes.Rows(i).Cells("steamId").Value = steamId Then
-                dgvBlockedNodes.Rows.Remove(dgvBlockedNodes.Rows(i))
-                If dsProcess IsNot Nothing Then
-                    dsProcess.Sync_MemoryBlockList(dgvBlockedNodes.Rows)
-                End If
             End If
         Next
     End Sub
@@ -1293,7 +1138,7 @@ Inherits ListBox
                 While Items.Count > Config.DebugLogLength
                     Items.RemoveAt(0)
                 End While
-
+                
                 Me.EndUpdate()
                 If scrollToBottom Then Me.TopIndex = Me.Items.Count - 1
             End If
