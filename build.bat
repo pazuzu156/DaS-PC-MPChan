@@ -4,13 +4,11 @@ set VS=%PROGRAMFILES(x86)%\Microsoft Visual Studio\2019\Community\MSBuild\Curren
 set UTIL=%CWD%\util
 set PATH=%VS%;%UTIL%;%PATH%;
 
-set FLAGS=-p:Configuration=Release -p:OutputPath="%CWD%\bin"
-
 if not exist util\nuget.exe goto download
 
 nuget restore
 
-msbuild DSCM.sln -m -nr:false %FLAGS%
+msbuild DSCM.sln -p:Configuration=Release -p:OutputPath="%CWD%\bin"
 goto end
 
 :download
