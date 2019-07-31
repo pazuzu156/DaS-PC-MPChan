@@ -9,12 +9,8 @@ set FLAGS=-p:Configuration=Release -p:OutputPath="%CWD%\bin"
 if not exist util\nuget.exe goto download
 
 nuget restore
-nuget restore il-repack
 
-msbuild il-repack\ILRepack\ILRepack.csproj %FLAGS%
 msbuild DSCM.sln -m -nr:false %FLAGS%
-
-%CWD%\bin\ILRepack.exe /log:merge.log /verbose /out:%CWD%\dist\DSCM.exe %CWD%\bin\DSCM.exe %CWD%\bin\CommonMark.dll
 goto end
 
 :download
